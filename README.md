@@ -9,7 +9,9 @@ installable pi package.
 > The model is stateless; the harness is the substrate of state.
 > This package is that substrate, with a frontend designed around how
 > humans actually maintain attention and trust. See [DESIGN.md](DESIGN.md)
-> and the [architecture diagrams](docs/architecture.html).
+> and the [architecture diagrams](docs/architecture.md)
+> (GitHub-native). Styled dark version:
+> [adrianpuiu.github.io/pi-harness/architecture.html](https://adrianpuiu.github.io/pi-harness/architecture.html).
 
 ## Install
 
