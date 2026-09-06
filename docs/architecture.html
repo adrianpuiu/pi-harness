@@ -64,6 +64,8 @@ flowchart TB
     subgraph EXT["pi-harness extensions"]
         GOV["governance.ts&lt;br/>tool_call gate"]
         VG["verify-gate.ts&lt;br/>executable verification"]
+        BG["budget-gate.ts&lt;br/>spend governor (opt-in)"]
+        LR["long-run.ts&lt;br/>ritual + ledger guard"]
         SC["scouts.ts&lt;br/>parallel read-only agents"]
         UI["ui.ts&lt;br/>header / footer / cards"]
         CC["context-compiler.ts&lt;br/>prune + compact prompts"]
@@ -71,7 +73,7 @@ flowchart TB
     end
 
     subgraph DISK[".harness/ (project-local state)"]
-        MISSION["MISSION.md&lt;br/>(mission-control)"]
+        MISSION["MISSION.md + features.json&lt;br/>mission + feature ledger"]
         SCOUTS["scouts/*.md&lt;br/>(cap 100, pid+seq names)"]
         VERIFYSH["verify.sh&lt;br/>(optional check)"]
         MEM["memories/"]
@@ -98,6 +100,11 @@ flowchart TB
     CHK -->|"red, TUI"| TUI
     CHK -->|"red, -p"| SESSION
     TUI -->|"/verify · /policy · /scouts · /mission"| EXT
+
+    TUI -->|"session resume → orientation ritual"| LR
+    LR -->|"ledger violations → correction steer"| TUI
+    BG -->|"≥80% wrap-up · ≥100% abort"| SESSION
+    TUI -->|"/longrun scaffolds mission + ledger"| LR
 
     SC -->|"spawns 1–5"| CHILDREN
     CHILDREN -->|"read personas"| AGENTS

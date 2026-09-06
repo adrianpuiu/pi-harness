@@ -208,9 +208,20 @@ export default function (pi: ExtensionAPI) {
 		pi.sendUserMessage(RITUAL);
 	});
 
+	const printGuard = (ctx: { mode?: string; ui: { notify: (message: string, type?: "warning" | "info" | "error") => void } }): boolean => {
+		if (ctx.mode !== "print") return false;
+		ctx.ui.notify(
+			"Print sessions can't take an initializer steer (session ends at disposal — .harness/memories/pi-print-mode.md). " +
+				"Run /longrun in an interactive pi session, or pass the initializer prompt as your -p prompt directly.",
+			"warning",
+		);
+		return true;
+	};
+
 	pi.registerCommand("longrun", {
 		description: "Initialize a long-running multi-session task (initializer steer)",
 		handler: async (args, ctx) => {
+			if (printGuard(ctx)) return;
 			const goal = args.trim();
 			if (!goal) {
 				ctx.ui.notify("Usage: /longrun <one-line goal>", "warning");
@@ -227,6 +238,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("ritual", {
 		description: "Run the mission orientation ritual now (mission + git log + smoke check)",
 		handler: async (_args, ctx) => {
+			if (printGuard(ctx)) return;
 			if (!existsSync(missionFile(ctx.cwd))) {
 				ctx.ui.notify("No .harness/MISSION.md — run /longrun <goal> first.", "warning");
 				return;

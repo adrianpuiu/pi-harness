@@ -64,6 +64,8 @@ Then pick the theme: `/settings` → theme `calm-focus`, or one-off:
 │   └── <topic>.md
 ├── scouts/           # full scout outputs (newest 100 kept)
 └── verify.sh         # optional: becomes your verification gate (exit 0 = green)
+                      # (budget.json is optional too: {"maxCostUsd": 5} enables the governor —
+                      #  80% of a ceiling steers a wrap-up, 100% aborts the run)
 ```
 
 ## Psychology, in one paragraph

@@ -79,6 +79,7 @@ export function usageTotals(ctx: ExtensionContext): UsageTotals {
 
 export default function (pi: ExtensionAPI) {
 	let warned = false;
+	let stopped = false;
 
 	const readConfig = (cwd: string): BudgetConfig | undefined => {
 		const file = join(cwd, ".harness", "budget.json");
@@ -90,6 +91,7 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	pi.on("turn_end", async (_event, ctx) => {
+		if (stopped) return;
 		const config = readConfig(ctx.cwd);
 		if (!config) return;
 		const action = computeBudgetAction(usageTotals(ctx), config, warned);
@@ -104,6 +106,7 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 		appendBudget("exceeded", action);
+		stopped = true;
 		ctx.ui.notify(`Budget exhausted (${action.pct}% ${action.unit}) — stopping the run. State lives in MISSION.md.`, "warning");
 		ctx.abort(); // no steer: the run is over; the card carries the verdict
 	});
