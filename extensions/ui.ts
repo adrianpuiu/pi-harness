@@ -24,7 +24,7 @@ import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-c
 import { Box, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { AUDIT_ENTRY, BUDGET_ENTRY, MISSION_FILE, SUMMARY_ENTRY, VERIFY_ENTRY, type AuditData, type BudgetData, type SummaryData, type VerifyData } from "./lib/constants.ts";
+import { AUDIT_ENTRY, BUDGET_ENTRY, CONTRACT_ENTRY, MISSION_FILE, SUMMARY_ENTRY, VERIFY_ENTRY, type AuditData, type BudgetData, type ContractData, type SummaryData, type VerifyData } from "./lib/constants.ts";
 import { fmtCost, fmtNum, fmtPct, progressBar } from "./lib/render.ts";
 import { parseBudgetConfig, type BudgetConfig } from "./budget-gate.ts";
 
@@ -225,6 +225,16 @@ function budgetCard(data: BudgetData, theme: Theme): Text {
 	return new Text(truncateToWidth(theme.fg(tone, `${icon} budget ${data.status} — ${data.pct}% · ${detail}`), 96), 0, 0);
 }
 
+function contractCard(data: ContractData, theme: Theme): Text {
+	const tone = data.verdict === "approved" ? "success" : "warning";
+	const icon = data.verdict === "approved" ? "✓" : "✍";
+	return new Text(
+		truncateToWidth(theme.fg(tone, `${icon} contract ${data.verdict} — ${truncateToWidth(data.feature, 60)}`) + theme.fg("dim", ` · ${data.contractPath}`), 96),
+		0,
+		0,
+	);
+}
+
 /* ---------------------------------- wiring ---------------------------------- */
 
 export default function (pi: ExtensionAPI) {
@@ -303,4 +313,5 @@ export default function (pi: ExtensionAPI) {
 	pi.registerEntryRenderer(AUDIT_ENTRY, (entry, _opts, theme) => auditCard(entry.data as AuditData, theme));
 	pi.registerEntryRenderer(VERIFY_ENTRY, (entry, { expanded }, theme) => verifyCard(entry.data as VerifyData, theme, expanded));
 	pi.registerEntryRenderer(BUDGET_ENTRY, (entry, _opts, theme) => budgetCard(entry.data as BudgetData, theme));
+	pi.registerEntryRenderer(CONTRACT_ENTRY, (entry, _opts, theme) => contractCard(entry.data as ContractData, theme));
 }

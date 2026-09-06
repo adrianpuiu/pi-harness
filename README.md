@@ -33,7 +33,7 @@ Then pick the theme: `/settings` → theme `calm-focus`, or one-off:
 | L3 Capability | **Parallel scouts with specialist profiles** — vendored hyperpowers hunters/refactorers/triage (read-only personas + `tools: none` aggregators), roster via `/scouts` | `extensions/scouts.ts`, `agents/` |
 | L6 Knowledge | 12 vendored prose skills: hunt/refactor methodology, finding/refactor contracts, 8 taxonomies | `skills/` |
 | L5 Orchestration | `/hunt`, `/refactor` — parallel dispatch → isolated triage → verdict | `prompts/` |
-| L4 State | Mission file + memory protocol skills | `skills/` |
+| L4 State | Mission file + memory protocol skills; long-run continuity (initializer + resume ritual + ledger guard + sprint contracts); opt-in budget governor | `skills/`, `extensions/long-run.ts`, `extensions/budget-gate.ts` |
 | L7 Governance | deny → ask → allow gates, protected paths, audit trail | `extensions/governance.ts` |
 | L4/L7 | Verification loop (Stop-hook analog, max 3 fix cycles; `-p`/CI sessions record the verdict in the transcript instead of steering) | `extensions/verify-gate.ts` |
 | L4 Context | Runtime context compiler: restorable pruning + decision-preserving compaction | `extensions/context-compiler.ts` |
@@ -50,6 +50,9 @@ Then pick the theme: `/settings` → theme `calm-focus`, or one-off:
 | `/scouts` | List the specialist roster with tool policies |
 | `/hunt <target>` | Orchestrator: 4 hunter profiles in parallel → isolated `bug-triage` → CLEAN / SHIP WITH FOLLOWUPS / DO NOT SHIP |
 | `/refactor <target>` | Orchestrator: 4 refactorer profiles in parallel → isolated `refactor-triage` → priority-ordered proposals (apply only on approval) |
+| `/longrun <goal>` | Initializer steer for multi-session tasks: scaffolds MISSION.md + features.json ledger + verify check (TUI) |
+| `/ritual` | Orientation ritual now: mission + memories + git log + smoke check before new work (auto-runs on resume in TUI) |
+| `/contract <feature>` | Sprint-contract negotiation: phase 1 drafts the contract, phase 2 runs a skeptical fresh-context evaluator (verdict artifacts in `.harness/contracts/`) |
 | `/mission` | Mission status digest |
 | auto | Approval overlay on risky actions (auto-deny after 45 s) |
 | auto | Summary card after every run; auto-verify after file-mutating runs |

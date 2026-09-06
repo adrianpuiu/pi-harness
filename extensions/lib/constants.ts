@@ -18,6 +18,9 @@ export const VERIFY_ENTRY = "harness.verify";
 /** Budget governor card (budget-gate.ts). */
 export const BUDGET_ENTRY = "harness.budget";
 
+/** Sprint-contract verdict card (long-run.ts /contract). */
+export const CONTRACT_ENTRY = "harness.contract";
+
 /** Mission control file: goal + checklist the widget and recitation skill share. */
 export const MISSION_FILE = ".harness/MISSION.md";
 
@@ -54,4 +57,11 @@ export interface BudgetData {
 	max: number;
 	unit: "usd" | "tokens";
 	pct: number;
+}
+
+export interface ContractData {
+	feature: string;
+	verdict: "approved" | "changes-required";
+	contractPath: string;
+	verdictPath: string;
 }

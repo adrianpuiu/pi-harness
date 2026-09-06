@@ -26,9 +26,10 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { AUDIT_ENTRY, type AuditData } from "./lib/constants.ts";
+import { AUDIT_ENTRY, CONTRACT_ENTRY, type AuditData, type ContractData } from "./lib/constants.ts";
 
 export interface LedgerViolation {
 	rule: string;
@@ -145,6 +146,107 @@ function missionFile(cwd: string): string {
 	return join(cwd, ".harness", "MISSION.md");
 }
 
+/* ------------------------------ sprint contracts ------------------------------ */
+
+const EVALUATOR_TIMEOUT_MS = 300_000;
+const READ_ONLY_TOOLS = "read,grep,find,ls";
+
+export function contractSlug(feature: string): string {
+	return feature.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 32).replace(/^-+|-+$/g, "") || "feature";
+}
+
+export function parseVerdict(reply: string): "approved" | "changes-required" {
+	const first = reply.trim().split("\n")[0]?.trim() ?? "";
+	return /^required changes/i.test(first) ? "changes-required" : "approved";
+}
+
+function evaluatorPrompt(draftPath: string): string {
+	return [
+		"You are a SKEPTICAL QA evaluator reviewing a sprint contract BEFORE",
+		"implementation (fresh-context review: you did not write it). Read-only.",
+		"",
+		`Read the draft contract at ${draftPath}, then .harness/features.json (the feature ledger)`,
+		"if present, and any code the contract touches.",
+		"",
+		"Judge only three things:",
+		"1. RIGHT THING — does the contract's scope match the ledger entries it claims?",
+		"2. CRITERIA — is every done-criterion concretely testable (no 'works correctly'),",
+		"" + "   covering failure modes and edge cases a user would actually hit?",
+		"3. SCOPE HONESTY — nothing snuck in, nothing quietly dropped.",
+		"",
+		"Out-of-the-box reviewers talk themselves into approving. Do not. If a criterion",
+		"is vague, demand the concrete verification step. If scope is unclear, list it.",
+		"",
+		"First line of your reply must be exactly one of:",
+		"  APPROVE",
+		"  REQUIRED CHANGES: <one-line summary>",
+		"Then numbered specifics (file:line where relevant).",
+	].join("\n");
+}
+
+interface ContractPaths {
+	dir: string;
+	draft: string;
+	verdict: string;
+}
+
+interface ContractCtx {
+	cwd: string;
+	mode?: string;
+	ui: {
+		setStatus: (key: string, text: string | undefined) => void;
+		notify: (message: string, type?: "warning" | "info" | "error") => void;
+	};
+}
+
+async function evaluateContract(
+	pi: ExtensionAPI,
+	ctx: ContractCtx,
+	feature: string,
+	paths: ContractPaths,
+): Promise<void> {
+	ctx.ui.setStatus("harness.contract", "evaluator running…");
+	try {
+		const result = await pi.exec(
+			"pi",
+			["-p", "--no-session", "--no-extensions", "--no-skills", "--tools", READ_ONLY_TOOLS, evaluatorPrompt(paths.draft)],
+			{ cwd: ctx.cwd, timeout: EVALUATOR_TIMEOUT_MS },
+		);
+		const reply = result.stdout.trim();
+		if (!reply || result.code !== 0) {
+			ctx.ui.notify(`Evaluator failed (exit ${result.code ?? "killed"})`, "error");
+			return;
+		}
+		const verdict = parseVerdict(reply);
+		await writeFile(paths.verdict, `# Verdict: ${verdict}\n\n${reply}\n`, "utf8");
+		// The verdict artifact is the durable record. The transcript card is a
+		// TUI nicety — appendEntry from a command handler in print mode is a
+		// observed silent no-op, so guard it and never let cosmetics break flow.
+		try {
+			pi.appendEntry(CONTRACT_ENTRY, { feature, verdict, contractPath: paths.draft, verdictPath: paths.verdict } satisfies ContractData);
+		} catch {
+			/* transcript card unavailable — artifact carries the record */
+		}
+		if (verdict === "changes-required") {
+			ctx.ui.notify(`Contract needs work — see ${paths.verdict}`, "warning");
+			if (ctx.mode !== "print") {
+				pi.sendUserMessage(
+					`Evaluator requires changes to the contract for "${feature}" (${paths.verdict}). Revise ${paths.draft} per the numbered issues, then the user re-runs /contract. Do not implement yet.`,
+			);
+			}
+			return;
+		}
+		ctx.ui.notify(`Contract approved — ${paths.verdict}`, "info");
+		if (ctx.mode !== "print") {
+			pi.sendUserMessage(
+				`Contract approved for "${feature}" (${paths.draft}). Implement it now. Done means every numbered criterion passes and the verification check is green. Report against the criteria when finished.`,
+			);
+		}
+	} finally {
+		ctx.ui.setStatus("harness.contract", undefined);
+	}
+}
+
 export default function (pi: ExtensionAPI) {
 	const snapshots = new Map<string, { path: string; content: string }>();
 
@@ -232,6 +334,40 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			pi.sendUserMessage(INITIALIZER(goal));
+		},
+	});
+
+	pi.registerCommand("contract", {
+		description: "Sprint-contract negotiation: phase 1 drafts the contract, phase 2 runs the skeptical evaluator",
+		handler: async (args, ctx) => {
+			const feature = args.trim();
+			if (!feature) {
+				ctx.ui.notify("Usage: /contract <feature>", "warning");
+				return;
+			}
+			const slug = contractSlug(feature);
+			const paths: ContractPaths = {
+				dir: join(ctx.cwd, ".harness", "contracts"),
+				draft: join(ctx.cwd, ".harness", "contracts", `draft-${slug}.md`),
+				verdict: join(ctx.cwd, ".harness", "contracts", `verdict-${slug}.md`),
+			};
+			if (!existsSync(paths.draft)) {
+				if (printGuard(ctx)) return;
+				await mkdir(paths.dir, { recursive: true });
+				pi.sendUserMessage(
+					[
+						`Draft a sprint contract for: ${feature}.`,
+						`Write it to ${paths.draft} with exactly these sections:`,
+						"- Scope: what will be built, and which features.json entries it covers",
+						"- Done criteria: numbered, each concretely testable, each with HOW to verify",
+						"- Out of scope: what this contract deliberately does not touch",
+						"",
+						"Then stop and tell the user to re-run /contract for skeptical evaluation.",
+					].join("\n"),
+			);
+				return;
+			}
+			await evaluateContract(pi, ctx, feature, paths);
 		},
 	});
 

@@ -1,7 +1,7 @@
 import { createJiti } from "jiti";
 
 const jiti = createJiti(import.meta.url);
-const { validateMissionTransition, validateFeaturesTransition } = await jiti.import(
+const { validateMissionTransition, validateFeaturesTransition, contractSlug, parseVerdict } = await jiti.import(
 	new URL("../extensions/long-run.ts", import.meta.url).href,
 );
 
@@ -52,6 +52,15 @@ check(
 check("adding a feature is legal", validateFeaturesTransition(JSON.stringify([]), feature("new", false)), []);
 check("invalid JSON is skipped (guard never crashes)", validateFeaturesTransition("{bad", "[]"), []);
 check("non-array JSON is skipped", validateFeaturesTransition("{}", "[]"), []);
+
+// --- sprint-contract helpers ---
+check("slug: spaces/punctuation collapse", contractSlug("Sprite Editor: drag & drop!"), "sprite-editor-drag-drop");
+check("slug: empty falls back", contractSlug("!!!"), "feature");
+check("slug: unicode-only falls back", contractSlug("你好世界"), "feature");
+check("verdict: APPROVE first line", parseVerdict("APPROVE\n1. solid"), "approved");
+check("verdict: REQUIRED CHANGES first line", parseVerdict("REQUIRED CHANGES: vague criteria\n1. fix"), "changes-required");
+check("verdict: case-insensitive", parseVerdict("required changes: x"), "changes-required");
+check("verdict: approve mentioned later still approves", parseVerdict("1. notes\nAPPROVE"), "approved");
 
 console.log(fail === 0 ? "ALL-PASS" : `${fail} FAILURES`);
 process.exit(fail === 0 ? 0 : 1);
