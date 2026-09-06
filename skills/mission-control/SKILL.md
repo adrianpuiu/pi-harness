@@ -22,6 +22,25 @@ this file is the recitation target, and the mission widget reads it live.
    ```
 
    Keep it under 15 items. Split larger missions: link a topic file per phase.
+   For feature-driven long tasks (apps/tools), prefer `/longrun <goal>` — it
+   scaffolds MISSION.md **plus** a `.harness/features.json` ledger
+   (`[{category, description, steps[], passes}]`) per the long-running-agent
+   pattern (Anthropic, Nov 2025).
+
+## Ledger rules (enforced by the deterministic ledger guard)
+
+The ledger guard extension validates MISSION.md / features.json edits:
+
+- Checklist ticks may only close: `- [ ]` → `- [x]`. Un-ticking, removing,
+  or rewriting an *unfinished* step triggers a correction steer — progress
+  must stay honest (a rewritten "easier" step is the quietest fake
+  progress there is).
+- If the course genuinely changed, ask the user to approve rewriting the
+  ledger explicitly, then do it in one edit.
+- features.json entries are immutable except `passes` (false→true, after
+  careful testing). Removing or editing entries is unacceptable — models
+  rewrite Markdown ledgers too easily; JSON + this guard is what survives
+  (the reason Anthropic's harness uses JSON for its feature list).
 
 2. **After completing each step:** tick it immediately (`- [x]`). Ticking is
    the progress bar — never batch ticks at the end.

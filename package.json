@@ -22,7 +22,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node test/governance.test.mjs && node test/context-compiler.test.mjs && node test/render.test.mjs"
+    "test": "node test/governance.test.mjs && node test/context-compiler.test.mjs && node test/render.test.mjs && node test/long-run.test.mjs && node test/budget-gate.test.mjs"
   },
   "type": "module"
 }

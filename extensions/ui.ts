@@ -24,8 +24,9 @@ import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-c
 import { Box, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { AUDIT_ENTRY, MISSION_FILE, SUMMARY_ENTRY, VERIFY_ENTRY, type AuditData, type SummaryData, type VerifyData } from "./lib/constants.ts";
+import { AUDIT_ENTRY, BUDGET_ENTRY, MISSION_FILE, SUMMARY_ENTRY, VERIFY_ENTRY, type AuditData, type BudgetData, type SummaryData, type VerifyData } from "./lib/constants.ts";
 import { fmtCost, fmtNum, fmtPct, progressBar } from "./lib/render.ts";
+import { parseBudgetConfig, type BudgetConfig } from "./budget-gate.ts";
 
 interface Stats {
 	inTok: number;
@@ -47,6 +48,33 @@ type BranchEntry = ReturnType<ExtensionContext["sessionManager"]["getBranch"]>[n
 // F04: render-path caches (singletons per extension instance).
 let missionCache: { path: string; mtimeMs: number; mission: Mission | undefined } | undefined;
 let statsCache: { key: string; view: { stats: Stats; hit: number | undefined } } | undefined;
+let budgetCache: { path: string; mtimeMs: number; config: BudgetConfig | undefined } | undefined;
+
+function budgetConfigFor(ctx: ExtensionContext): BudgetConfig | undefined {
+	const path = join(ctx.cwd, ".harness", "budget.json");
+	try {
+		const { mtimeMs } = statSync(path);
+		if (budgetCache?.path === path && budgetCache.mtimeMs === mtimeMs) return budgetCache.config;
+		const config = parseBudgetConfig(readFileSync(path, "utf8"));
+		budgetCache = { path, mtimeMs, config };
+		return config;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Footer budget marker (⛁%) only when a budget is configured. */
+function budgetMarker(ctx: ExtensionContext, stats: Stats, theme: Theme): string {
+	const config = budgetConfigFor(ctx);
+	if (!config) return "";
+	const ratios: number[] = [];
+	if (config.maxCostUsd !== undefined) ratios.push(stats.cost / config.maxCostUsd);
+	if (config.maxTokens !== undefined) ratios.push((stats.inTok + stats.outTok) / config.maxTokens);
+	if (ratios.length === 0) return "";
+	const pct = Math.round(Math.max(...ratios) * 100);
+	const tone = pct >= 100 ? "error" : pct >= 80 ? "warning" : "dim";
+	return `${theme.fg(tone, `⛁${fmtPct(Math.max(...ratios))}`)} `;
+}
 
 /** Latest-message cache hit rate: cached/(cached+uncached input); undefined when unknown. */
 function scanStats(branch: BranchEntry[]): { stats: Stats; hit: number | undefined } {
@@ -126,7 +154,7 @@ function renderFooterLine(width: number, theme: Theme, ctx: ExtensionContext): s
 		: theme.fg("dim", "◇ ready");
 	const view = cachedStats(ctx);
 	const hit = fmtPct(view.hit);
-	const right = theme.fg(
+	const right = budgetMarker(ctx, view.stats, theme) + theme.fg(
 		"dim",
 		`↑${fmtNum(view.stats.inTok)} ↓${fmtNum(view.stats.outTok)} R${hit} ${fmtCost(view.stats.cost)}`,
 	);
@@ -188,6 +216,13 @@ function verifyCard(data: VerifyData, theme: Theme, expanded: boolean): Text {
 	const box = new Box(1, 0, (s: string) => theme.fg("dim", s));
 	box.addChild(new Text(theme.fg("error", data.digest), 0, 0));
 	return new Text(`${head}\n${box.render(96).join("\n")}`, 0, 0);
+}
+
+function budgetCard(data: BudgetData, theme: Theme): Text {
+	const tone = data.status === "exceeded" ? "error" : "warning";
+	const icon = data.status === "exceeded" ? "⏹" : "⚠";
+	const detail = data.unit === "usd" ? `$${data.used.toFixed(2)} / $${data.max.toFixed(2)}` : `${fmtNum(data.used)} / ${fmtNum(data.max)} tok`;
+	return new Text(truncateToWidth(theme.fg(tone, `${icon} budget ${data.status} — ${data.pct}% · ${detail}`), 96), 0, 0);
 }
 
 /* ---------------------------------- wiring ---------------------------------- */
@@ -267,4 +302,5 @@ export default function (pi: ExtensionAPI) {
 	);
 	pi.registerEntryRenderer(AUDIT_ENTRY, (entry, _opts, theme) => auditCard(entry.data as AuditData, theme));
 	pi.registerEntryRenderer(VERIFY_ENTRY, (entry, { expanded }, theme) => verifyCard(entry.data as VerifyData, theme, expanded));
+	pi.registerEntryRenderer(BUDGET_ENTRY, (entry, _opts, theme) => budgetCard(entry.data as BudgetData, theme));
 }

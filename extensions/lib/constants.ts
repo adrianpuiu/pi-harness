@@ -15,6 +15,9 @@ export const SUMMARY_ENTRY = "harness.summary";
 /** Verification check result card. */
 export const VERIFY_ENTRY = "harness.verify";
 
+/** Budget governor card (budget-gate.ts). */
+export const BUDGET_ENTRY = "harness.budget";
+
 /** Mission control file: goal + checklist the widget and recitation skill share. */
 export const MISSION_FILE = ".harness/MISSION.md";
 
@@ -43,4 +46,12 @@ export interface VerifyData {
 	label: string;
 	seconds: number;
 	digest?: string;
+}
+
+export interface BudgetData {
+	status: "warning" | "exceeded";
+	used: number;
+	max: number;
+	unit: "usd" | "tokens";
+	pct: number;
 }
