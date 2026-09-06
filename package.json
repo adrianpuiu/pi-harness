@@ -1,0 +1,28 @@
+{
+  "name": "pi-harness",
+  "version": "0.1.0",
+  "description": "Production harness layer for pi: governance gates, verification loops, a runtime context compiler, and a calm psychology-informed TUI.",
+  "keywords": [
+    "pi-package"
+  ],
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ],
+    "themes": [
+      "./themes"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node test/governance.test.mjs && node test/context-compiler.test.mjs && node test/render.test.mjs"
+  },
+  "type": "module"
+}
